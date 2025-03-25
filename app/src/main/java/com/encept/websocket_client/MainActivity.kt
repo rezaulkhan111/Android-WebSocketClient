@@ -1,12 +1,20 @@
 package com.encept.websocket_client
 
+import android.content.pm.PackageManager
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.Manifest
+import android.app.Activity
+import android.os.Build
+import android.util.Base64
+import android.util.Log
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.encept.websocket_client.databinding.ActivityMainBinding
+import com.google.gson.Gson
+import okhttp3.OkHttpClient
+import okio.ByteString
 import java.net.URI
 import java.util.*
 
@@ -15,86 +23,133 @@ Created By Encept Ltd (https://encept.co)
 */
 
 class MainActivity : AppCompatActivity() {
-
     private lateinit var binding: ActivityMainBinding
     private lateinit var webSocketClient: ChatWebSocketClient
-    private var AL: ArrayList<HashMap<String, Any>> = ArrayList()
+    private var audioStreamer: AudioStreamer? = null
+//    private var audioReceiver: AudioReceiver? = null
+
+    private var mSenderToket =
+        "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VySWQiOiJkYTVmNWUyOC02OTU5LTQ2MDUtYjViMS1hNGVhZTI1YmZkNjEiLCJFbWFpbCI6InJlemF1bEB0ZXN0LmNvbSIsIk1vYmlsZU51bWJlciI6IjAxNzc3NTUwMjg3IiwiVXNlclJvbGVOYW1lIjoiRGlzdHJpY3QgT2ZmaWNlciIsIlVzZXJSb2xlSWQiOiI2MTEzNjdmNi0yZmFhLTQyOTctOTMxMi04OTc3ZTUwOTQwYjgiLCJqdGkiOiI1NDMxNjFjMi1hYWNkLTRiN2YtYjM5YS1mN2RiOTE1MDhiOTYiLCJleHAiOjE3NDIwNTI0NTksImlzcyI6Im1hdGlycHJhbiIsImF1ZCI6IlVzZXIifQ.xRO5GM8Pc7qhmf8WGhvjJuAX_BTsAs2Zy5uA9YBJuHA"
+
+    private var mReciverToket =
+        "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VySWQiOiI5YTc2NGY0ZS00YzdmLTRmZDUtYWNlZi0xOTE1YWUxOGUzMjUiLCJFbWFpbCI6IiIsIk1vYmlsZU51bWJlciI6IjAxNjg1NTE1MDg2IiwiVXNlclJvbGVOYW1lIjoiRmFybWVyIiwiVXNlclJvbGVJZCI6ImFjODhmZmIzLWI5MWYtNDQzMi04NjlkLWJhODBmMTNmNDU3NiIsImp0aSI6IjMyMjgwMTc2LTUxMzEtNDc5My04YTdlLTVjY2Y1OTAwMjAyYSIsImV4cCI6MTc0MTkwNzk3OCwiaXNzIjoibWF0aXJwcmFuIiwiYXVkIjoiVXNlciJ9.AEhmbu7o8eekrrd3dp-g75xDBewiL5ZY1-WBMCY1p14"
+
+    // load server url from strings.xml
+//    val serverUri = "ws://127.0.0.1:44324/sendMessage"
+    val serverUri = "ws://192.168.0.110:9090/sendMessage"
+
+    private val requestPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                startAudioStreaming()
+            } else {
+                Toast.makeText(this, "Microphone permission denied!", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+    private val requestWritePermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                startAudioStreaming()
+            } else {
+                Toast.makeText(this, "Microphone permission denied!", Toast.LENGTH_SHORT).show()
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val btnSend = binding.btnSend
-        val editMsg = binding.editMsg
-        val listview1 = binding.listview1
+        binding.apply {
+            btnStart.setOnClickListener {
+                checkPermission(this@MainActivity)
 
-        // load server url from strings.xml
-        val serverUri = URI(getString(R.string.server_url))
-
-        webSocketClient = ChatWebSocketClient(serverUri) { message ->
-            // display incoming message in ListView
-            runOnUiThread {
-                run {
-                    val _item = HashMap<String, Any>()
-                    _item["message"] = message
-                    AL.add(_item)
-                }
-                listview1.adapter = Listview1Adapter(AL)
+                webSocketClient = ChatWebSocketClient(
+                    serverUri, HashMap<String, String>().apply {
+                        put("Authorization", mSenderToket)
+                        put("Content-Type", "application/json")
+                    }, OkHttpClient()
+                )
+                webSocketClient.connect()
+                checkAndRequestPermissions()
             }
-        }
-        // connect to websocket server
-        webSocketClient.connect()
 
+            btnStop.setOnClickListener {
+                stopAudioStreaming()
+            }
 
-        btnSend.setOnClickListener {
-            try {
-                // send message to websocket server
-                webSocketClient.sendMessage(editMsg.text.toString())
-                editMsg.setText("")
-            } catch (e: Exception) {
-                e.printStackTrace()
-                Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT).show()
+            btnPlayAudio.setOnClickListener {
+                webSocketClient = ChatWebSocketClient(
+                    serverUri, HashMap<String, String>().apply {
+                        put("Authorization", mReciverToket)
+                        put("Content-Type", "application/json")
+                    }, OkHttpClient()
+                )
+                webSocketClient.connect()
+                startAudioPlay()
+            }
+
+            btnStopPlayAudio.setOnClickListener {
+                webSocketClient.disconnect()
+                stopAudioPlay()
             }
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        // close websocket connection
-        webSocketClient.close()
+        webSocketClient.disconnect()
     }
 
-
-    class Listview1Adapter(private val _data: ArrayList<HashMap<String, Any>>) : BaseAdapter() {
-        override fun getCount(): Int {
-            return _data.size
+    private fun checkAndRequestPermissions() {
+        if (ContextCompat.checkSelfPermission(
+                this, Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            startAudioStreaming()
+        } else {
+            requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
-
-        override fun getItem(_index: Int): HashMap<String, Any> {
-            return _data[_index]
-        }
-
-        override fun getItemId(_index: Int): Long {
-            return _index.toLong()
-        }
-
-        override fun getView(_position: Int, _v: View?, _container: ViewGroup?): View? {
-            val _inflater = LayoutInflater.from(_container?.context)
-            var _view = _v
-            if (_view == null) {
-                _view = _inflater.inflate(R.layout.custom, _container, false)
-            }
-
-            val text2 = _view?.findViewById<TextView>(R.id.text2)
-
-            if (text2 != null) {
-                text2.text = _data[_position]["message"].toString()
-            }
-
-            return _view
-        }
-
     }
 
+    private fun startAudioStreaming() {
+        audioStreamer = AudioStreamer(this, webSocketClient)
+        audioStreamer?.startStreaming()
+        Toast.makeText(this, "Audio streaming started!", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun startAudioPlay() {
+        audioStreamer = AudioStreamer(this, webSocketClient)
+        audioStreamer?.startRecive()
+        Toast.makeText(this, "Audio Play started!", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun stopAudioPlay() {
+        audioStreamer = AudioStreamer(this, webSocketClient)
+        audioStreamer?.stopAudio()
+    }
+
+    private fun stopAudioStreaming() {
+        audioStreamer?.stopStreaming()
+        webSocketClient.disconnect()
+        Toast.makeText(this, "Audio streaming stopped!", Toast.LENGTH_SHORT).show()
+    }
+
+    fun checkPermission(activity: Activity): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (activity.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                true
+            } else {
+                activity.requestPermissions(
+                    arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 100
+                )
+                requestWritePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+
+                false
+            }
+        } else {
+            true
+        }
+    }
 }
