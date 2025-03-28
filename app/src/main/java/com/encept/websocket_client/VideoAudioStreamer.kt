@@ -33,6 +33,7 @@ class VideoAudioStreamer(
     private var encoder: MediaCodec? = null
     private var inputSurface: Surface? = null
     private var cameraProvider: ProcessCameraProvider? = null
+    private var isVideoStreaming = false
 
     private val sampleRate = 44100
     private val audioBufferSize = AudioRecord.getMinBufferSize(
@@ -40,7 +41,7 @@ class VideoAudioStreamer(
     )
     private var audioRecord: AudioRecord? = null
     private var audioTrack: AudioTrack? = null
-    private var isStreaming = false
+    private var isAudioStreaming = false
 
     fun startAudioVideoStreaming() {
         val requiredPermissions = arrayOf(
@@ -88,6 +89,7 @@ class VideoAudioStreamer(
                 imageAnalysis
             )
 
+            isVideoStreaming = true
             initializeEncoder()
             //if used this. Video Preview not show
             preview.setSurfaceProvider { request ->
@@ -116,7 +118,7 @@ class VideoAudioStreamer(
             start()
         }
 
-        isStreaming = true
+        isAudioStreaming = true
         audioRecord?.startRecording()
 
         if (encoder != null) {
@@ -124,7 +126,7 @@ class VideoAudioStreamer(
 //            Thread {
                 try {
                     val bufferInfo = MediaCodec.BufferInfo()
-                    while (true && isStreaming) {
+                    while (isVideoStreaming && isAudioStreaming) {
                         val videoOutputIndex = encoder?.dequeueOutputBuffer(bufferInfo, 10000) ?: -1
 
                         val audioBuffer = ByteArray(audioBufferSize)
@@ -156,7 +158,8 @@ class VideoAudioStreamer(
     }
 
     fun stopAudioVideoStreaming() {
-        isStreaming = false
+        isAudioStreaming = false
+        isVideoStreaming = false
 
         if (cameraExecutor != null && cameraProvider != null && encoder != null && audioRecord != null) {
             cameraExecutor.shutdown()
