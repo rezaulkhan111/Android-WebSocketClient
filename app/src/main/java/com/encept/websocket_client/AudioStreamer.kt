@@ -58,7 +58,9 @@ class AudioStreamer(
             while (isStreaming) {
                 val readBytes = audioRecord?.read(buffer, 0, buffer.size) ?: -1
                 if (readBytes > 0) {
-                    webSocketClient.sendAudioOrVideoData(buffer)
+                    webSocketClient.sendAudioOrVideoData(UserChat().apply {
+                        audioBytes = buffer
+                    })
                 }
             }
         }

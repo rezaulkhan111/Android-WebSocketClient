@@ -3,9 +3,13 @@ package com.encept.websocket_client
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.AudioTrack
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
+import android.media.MediaRecorder
 import android.util.Log
 import android.view.Surface
 import androidx.camera.core.CameraSelector
@@ -15,29 +19,49 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 
-class VAStreamer(
+class VideoAudioStreamer(
     private val context: Context,
     private val webSocketClient: ChatWebSocketClient,
     val pvCameraView: PreviewView
 ) {
-
     private val cameraExecutor = Executors.newSingleThreadExecutor()
     private var encoder: MediaCodec? = null
     private var inputSurface: Surface? = null
-
-    //    private var previewSurface: Surface? = null
     private var cameraProvider: ProcessCameraProvider? = null
 
-    fun startVideoStreaming() {
-        if (ContextCompat.checkSelfPermission(
-                context, Manifest.permission.CAMERA
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            Log.e("VideoStreamer", "Camera permission not granted")
+    private val sampleRate = 44100
+    private val audioBufferSize = AudioRecord.getMinBufferSize(
+        sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
+    )
+    private var audioRecord: AudioRecord? = null
+    private var audioTrack: AudioTrack? = null
+    private var isStreaming = false
+
+    fun startAudioVideoStreaming() {
+        val requiredPermissions = arrayOf(
+            Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO
+        )
+        if (!requiredPermissions.all { itPermissions ->
+                ContextCompat.checkSelfPermission(
+                    context, itPermissions
+                ) == PackageManager.PERMISSION_GRANTED
+            }) {
+            Log.e("VideoStreamer", "Camera and audio permission not granted")
             return
         }
+
+        audioRecord = AudioRecord(
+            MediaRecorder.AudioSource.MIC,
+            sampleRate,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT,
+            audioBufferSize
+        )
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
@@ -92,38 +116,58 @@ class VAStreamer(
             start()
         }
 
-        Thread {
-            val bufferInfo = MediaCodec.BufferInfo()
-            while (true) {
-                val outputIndex = encoder?.dequeueOutputBuffer(bufferInfo, 10000) ?: -1
-                if (outputIndex >= 0) {
-                    val outputBuffer = encoder?.getOutputBuffer(outputIndex)
-                    val encodedData = ByteArray(bufferInfo.size)
-                    outputBuffer?.get(encodedData)
+        isStreaming = true
+        audioRecord?.startRecording()
 
-                    Log.e(
-                        "VAStreamer", "startEncoding Encoded data size: ${encodedData.size} bytes"
-                    )
-                    // Send encoded frame over WebSocket
-                    webSocketClient.sendAudioOrVideoData(UserChat().apply {
-                        videoBytes = encodedData
-                    })
-                    encoder?.releaseOutputBuffer(outputIndex, false)
-                } else {
-                    Log.e("VAStreamer", "startEncoding No output buffer available.")
+        if (encoder != null) {
+            CoroutineScope(Dispatchers.IO).launch {
+//            Thread {
+                try {
+                    val bufferInfo = MediaCodec.BufferInfo()
+                    while (true && isStreaming) {
+                        val videoOutputIndex = encoder?.dequeueOutputBuffer(bufferInfo, 10000) ?: -1
+
+                        val audioBuffer = ByteArray(audioBufferSize)
+                        val audioReadBytes =
+                            audioRecord?.read(audioBuffer, 0, audioBuffer.size) ?: -1
+
+                        if (videoOutputIndex >= 0 && audioReadBytes > 0) {
+                            val videoOutputBuffer = encoder?.getOutputBuffer(videoOutputIndex)
+                            val videoEncodedData = ByteArray(bufferInfo.size)
+                            videoOutputBuffer?.get(videoEncodedData)
+
+                            webSocketClient.sendAudioOrVideoData(UserChat().apply {
+                                audioBytes = audioBuffer
+                                videoBytes = videoEncodedData
+                            })
+                            // Send encoded frame over WebSocket
+                            encoder?.releaseOutputBuffer(videoOutputIndex, false)
+                        } else {
+                            Log.e("VAStreamer", "startEncoding No output buffer available.")
+                        }
+//                    Thread.sleep(10)
+                    }
+                } catch (exp: Exception) {
+                    Log.e("VAStreamer2", "exp: " + exp.message)
                 }
-                Thread.sleep(10)
+//            }.start()
             }
-        }.start()
+        }
     }
 
-    fun stopCamera() {
-        if (cameraExecutor != null && cameraProvider != null && encoder != null) {
+    fun stopAudioVideoStreaming() {
+        isStreaming = false
+
+        if (cameraExecutor != null && cameraProvider != null && encoder != null && audioRecord != null) {
             cameraExecutor.shutdown()
             cameraProvider?.unbindAll()
             encoder?.stop()
             encoder?.release()
 
+            audioRecord?.stop()
+            audioRecord?.release()
+
+            audioRecord = null
             encoder = null
         }
     }

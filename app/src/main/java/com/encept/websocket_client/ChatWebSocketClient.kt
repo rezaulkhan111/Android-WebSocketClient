@@ -56,13 +56,13 @@ open class ChatWebSocketClient(
         })
     }
 
-    fun sendAudioOrVideoData(mByteAudio: ByteArray) {
-        Log.e("CWSocketC", "sendAudioOrVideoData: " + mByteAudio.size)
+    fun sendAudioOrVideoData(mData: UserChat) {
         val userData = Gson().toJson(UserChat().apply {
             receiverId = "9a764f4e-4c7f-4fd5-acef-1915ae18e325"
             isSaveMessage = false
             messageText = "No"
-            audioBytes = mByteAudio
+            audioBytes = mData.audioBytes
+            videoBytes = mData.videoBytes
 //            strAudioBytes =
 //                Base64.encodeToString(mByteAudio, Base64.NO_WRAP)
         })

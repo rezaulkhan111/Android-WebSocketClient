@@ -33,8 +33,14 @@ class UserChat {
     @SerializedName("audioBytes")
     var audioBytes: ByteArray? = null
 
-    @SerializedName("strAudioBytes")
+    @SerializedName("videoBytes")
+    var videoBytes: ByteArray? = null
+
+    @SerializedName("audioBase64String")
     var audioBase64String: String? = null
+
+    @SerializedName("videoBase64String")
+    var videoBase64String: String? = null
 
     @SerializedName("sdp")
     var sdp: String? = null

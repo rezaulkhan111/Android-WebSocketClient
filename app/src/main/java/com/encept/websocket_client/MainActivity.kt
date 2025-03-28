@@ -3,7 +3,6 @@ package com.encept.websocket_client
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.Manifest
-import android.view.SurfaceView
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -11,7 +10,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.encept.websocket_client.databinding.ActivityMainBinding
 import okhttp3.OkHttpClient
-import org.webrtc.VideoDecoder
 import java.util.*
 
 /*
@@ -27,6 +25,9 @@ class MainActivity : AppCompatActivity() {
     private var audioStreamer: AudioStreamer? = null
     private var vaStreamer: VAStreamer? = null
     private var videoPlayer: VideoPlayer? = null
+
+
+    private var vAStreamer: VideoAudioStreamer? = null
 
     //    private var videoStreamer: VideoStreamer? = null
 //    private var audioReceiver: AudioReceiver? = null
@@ -89,15 +90,21 @@ class MainActivity : AppCompatActivity() {
             btnStartVideoStream.setOnClickListener {
                 if (wsSendClient != null) {
                     wsSendClient?.connect()
-                    vaStreamer = VAStreamer(this@MainActivity, wsSendClient!!, pvCamera)
-                    checkRequestVideoPermissions()
+                    vAStreamer = VideoAudioStreamer(this@MainActivity, wsSendClient!!, pvCamera)
+//                    vaStreamer = VAStreamer(
+//                        this@MainActivity, wsSendClient!!, pvCamera
+//                    )
+                    checkAVPermissions()
+//                    checkRequestVideoPermissions()
+//                    checkRequestAudioPermissions()
                 }
             }
 
             btnStopVideoStream.setOnClickListener {
-                if (vaStreamer != null && wsSendClient != null) {
+                if (vAStreamer != null && wsSendClient != null) {
                     wsSendClient?.disconnect()
-                    vaStreamer?.stopCamera()
+                    vAStreamer?.stopAudioVideoStreaming()
+//                    stopAudioStreaming()
                 }
             }
 
@@ -108,6 +115,8 @@ class MainActivity : AppCompatActivity() {
                     videoPlayer?.initializeDecoder()
 
                     videoPlayer?.startReceivedVideo()
+
+                    startReceivedAudio()
                 }
             }
 
@@ -115,6 +124,8 @@ class MainActivity : AppCompatActivity() {
                 if (wsReciverClient != null && videoPlayer != null) {
                     wsReciverClient?.disconnect()
                     videoPlayer?.stopReceivedVideo()
+
+                    stopReceivedAudio()
                 }
             }
         }
@@ -159,6 +170,23 @@ class MainActivity : AppCompatActivity() {
     private fun stopReceivedAudio() {
         if (audioStreamer != null) {
             audioStreamer?.stopAudioReceived()
+        }
+    }
+
+    private fun checkAVPermissions() {
+        val requiredPermissions = arrayOf(
+            Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO
+        )
+        if (!requiredPermissions.all {
+                ContextCompat.checkSelfPermission(
+                    this, it
+                ) == PackageManager.PERMISSION_GRANTED
+            }) {
+            ActivityCompat.requestPermissions(this, requiredPermissions, 101)
+        } else {
+            if (vAStreamer != null) {
+                vAStreamer?.startAudioVideoStreaming()
+            }
         }
     }
 
