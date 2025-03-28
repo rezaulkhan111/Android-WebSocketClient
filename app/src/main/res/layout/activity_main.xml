@@ -9,77 +9,113 @@
         android:id="@+id/linear2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical"
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+        android:orientation="horizontal"
         android:padding="4dp">
 
-        <ListView
-            android:id="@+id/listview1"
+        <Button
+            android:id="@+id/btnStartAudioStream"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:choiceMode="none"
-            android:padding="8dp"
-            android:visibility="gone" />
+            android:text="Start Send Audio"
+            android:textAllCaps="false" />
 
         <Button
-            android:id="@+id/btnStart"
+            android:id="@+id/btnStopAudioStream"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Start" />
-
-        <Button
-            android:id="@+id/btnStop"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Stop" />
+            android:text="Stop Send Audio"
+            android:textAllCaps="false" />
     </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
-
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+        android:orientation="horizontal">
 
         <Button
-            android:id="@+id/btnPlayAudio"
+            android:id="@+id/btnStartReceivedAudio"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Play Audio" />
+            android:text="Start Received Audio"
+            android:textAllCaps="false" />
 
         <Button
-            android:id="@+id/btnStopPlayAudio"
+            android:id="@+id/btnStopReceivedAudio"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Stop Play Audio" />
+            android:text="Stop Received Audio"
+            android:textAllCaps="false" />
     </LinearLayout>
 
     <LinearLayout
-        android:id="@+id/linear1"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="2dp">
+        android:layout_height="match_parent"
+        android:layout_marginTop="10dp"
+        android:layout_weight="2"
+        android:orientation="horizontal">
 
-        <EditText
-            android:id="@+id/edit_msg"
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginEnd="5dp"
             android:layout_weight="1"
-            android:hint="@string/enter_message"
-            android:importantForAutofill="no"
-            android:padding="8dp"
-            android:textColor="#000000"
-            android:textColorHint="#607D8B"
-            android:textSize="12sp"
-            tools:ignore="TextFields" />
+            android:gravity="center"
+            android:orientation="vertical">
 
-        <Button
-            android:id="@+id/btnSend"
-            android:layout_width="wrap_content"
+            <SurfaceView
+                android:id="@+id/svVideoView"
+                android:layout_width="match_parent"
+                android:layout_height="400dp" />
+
+            <Button
+                android:id="@+id/btnStartVideoReceived"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Start Video Received"
+                android:textAllCaps="false" />
+
+            <Button
+                android:id="@+id/btnStopVideoReceived"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Stop Video Received"
+                android:textAllCaps="false" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:text="@string/send"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp" />
+            android:layout_marginStart="5dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <androidx.camera.view.PreviewView
+                android:id="@+id/pvCamera"
+                android:layout_width="match_parent"
+                android:layout_height="400dp" />
+
+            <Button
+                android:id="@+id/btnStartVideoStream"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Start Video Stream"
+                android:textAllCaps="false" />
+
+            <Button
+                android:id="@+id/btnStopVideoStream"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Stop Video Stream"
+                android:textAllCaps="false" />
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>

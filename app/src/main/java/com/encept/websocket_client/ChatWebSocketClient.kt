@@ -4,7 +4,6 @@ import android.util.Log
 import com.google.gson.Gson
 import okhttp3.Headers
 import okhttp3.OkHttpClient
-import android.util.*
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
@@ -14,7 +13,7 @@ import okhttp3.WebSocketListener
 Created By Encept Ltd (https://encept.co)
 */
 // initialize websocket client
-class ChatWebSocketClient(
+open class ChatWebSocketClient(
     private var wsServerUrl: String,
     private var headersMap: HashMap<String, String>,
     private var okHttpClient: OkHttpClient
@@ -57,7 +56,8 @@ class ChatWebSocketClient(
         })
     }
 
-    fun sendAudioData(mByteAudio: ByteArray) {
+    fun sendAudioOrVideoData(mByteAudio: ByteArray) {
+        Log.e("CWSocketC", "sendAudioOrVideoData: " + mByteAudio.size)
         val userData = Gson().toJson(UserChat().apply {
             receiverId = "9a764f4e-4c7f-4fd5-acef-1915ae18e325"
             isSaveMessage = false
@@ -66,11 +66,6 @@ class ChatWebSocketClient(
 //            strAudioBytes =
 //                Base64.encodeToString(mByteAudio, Base64.NO_WRAP)
         })
-//        val jsonBytes = userData.toString().toByteArray(Charsets.UTF_8)
-//        val finalBytes = jsonBytes + mByteAudio
-//        finalBytes.toString()
-
-//        Log.e("CWSC", "sendAudioData: " + Gson().toJson(ByteString.of(*finalBytes)))
 //        val s = "jsonStringForPrimaryCompany"
 //        val json: String = Gson().toJson(ByteString.of(*finalBytes))
 //        val json: String = userData
