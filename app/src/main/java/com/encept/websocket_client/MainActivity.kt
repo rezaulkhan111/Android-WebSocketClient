@@ -24,7 +24,7 @@ class MainActivity : AppCompatActivity() {
 
     private var audioStreamer: AudioStreamer? = null
     private var vaStreamer: VAStreamer? = null
-    private var videoPlayer: VideoPlayer? = null
+    private var vAPlayer: VideoAudioPlayer? = null
 
 
     private var vAStreamer: VideoAudioStreamer? = null
@@ -91,12 +91,7 @@ class MainActivity : AppCompatActivity() {
                 if (wsSendClient != null) {
                     wsSendClient?.connect()
                     vAStreamer = VideoAudioStreamer(this@MainActivity, wsSendClient!!, pvCamera)
-//                    vaStreamer = VAStreamer(
-//                        this@MainActivity, wsSendClient!!, pvCamera
-//                    )
                     checkAVPermissions()
-//                    checkRequestVideoPermissions()
-//                    checkRequestAudioPermissions()
                 }
             }
 
@@ -104,28 +99,21 @@ class MainActivity : AppCompatActivity() {
                 if (vAStreamer != null && wsSendClient != null) {
                     wsSendClient?.disconnect()
                     vAStreamer?.stopAudioVideoStreaming()
-//                    stopAudioStreaming()
                 }
             }
 
             btnStartVideoReceived.setOnClickListener {
                 if (wsReciverClient != null) {
                     wsReciverClient?.connect()
-                    videoPlayer = VideoPlayer(binding.svVideoView, wsReciverClient!!)
-                    videoPlayer?.initializeDecoder()
-
-                    videoPlayer?.startReceivedVideo()
-
-                    startReceivedAudio()
+                    vAPlayer = VideoAudioPlayer(binding.svVideoView, wsReciverClient!!)
+                    vAPlayer?.initializeDecoder()
                 }
             }
 
             btnStopVideoReceived.setOnClickListener {
-                if (wsReciverClient != null && videoPlayer != null) {
+                if (wsReciverClient != null && vAPlayer != null) {
                     wsReciverClient?.disconnect()
-                    videoPlayer?.stopReceivedVideo()
-
-                    stopReceivedAudio()
+                    vAPlayer?.stopReceivedVideo()
                 }
             }
         }
