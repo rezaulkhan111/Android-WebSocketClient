@@ -9,9 +9,10 @@ import android.media.MediaFormat
 import android.util.Log
 import android.view.Surface
 import android.view.SurfaceView
+import com.google.gson.Gson
 
 class VideoAudioPlayer(
-    private val surfaceView: SurfaceView, private val webSocketClient: ChatWebSocketClient
+    private val surfaceView: SurfaceView, private val webSocketClient: ChatWebSocketClient?
 ) {
     private val sampleRate = 44100
     private val bufferSize = AudioRecord.getMinBufferSize(
@@ -22,6 +23,7 @@ class VideoAudioPlayer(
     private var surface: Surface? = null
 
     fun initializeDecoder() {
+        webSocketClient?.connect()
         surface = surfaceView.holder.surface
 
         val format = MediaFormat.createVideoFormat("video/avc", 640, 480)
@@ -70,10 +72,10 @@ class VideoAudioPlayer(
     }
 
     private fun startReceivedAudioVideo() {
-        webSocketClient.let { itSoc ->
+        webSocketClient?.let { itSoc ->
             if (itSoc.isWebSocketConnected()) {
                 itSoc.setMessageListener(RootJson::class.java) { itUserM ->
-                    Log.e("data", "startReceivedVideo: ")
+                    Log.e("data", "if startReceivedVideo: " + Gson().toJson(itUserM))
                     if (itUserM.data != null) {
                         itUserM.data?.apply {
                             decodeVideoFrame(
@@ -97,7 +99,7 @@ class VideoAudioPlayer(
             } else {
                 itSoc.connect()
                 itSoc.setMessageListener(RootJson::class.java) { itUserM ->
-                    Log.e("data", "startReceivedVideo: ")
+                    Log.e("data", "else  startReceivedVideo: " + Gson().toJson(itUserM))
                     if (itUserM.data != null) {
                         itUserM.data?.apply {
                             decodeVideoFrame(
@@ -130,7 +132,9 @@ class VideoAudioPlayer(
     }
 
     fun stopReceivedVideo() {
-        if (decoder != null && audioTrack != null) {
+        if (decoder != null && audioTrack != null && webSocketClient != null) {
+            webSocketClient.disconnect()
+
             decoder?.stop()
             decoder?.release()
 

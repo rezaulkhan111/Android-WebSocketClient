@@ -1,16 +1,13 @@
 package com.encept.websocket_client
 
+import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.Manifest
-import android.widget.*
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.encept.websocket_client.databinding.ActivityMainBinding
 import okhttp3.OkHttpClient
-import java.util.*
 
 /*
 Created By Encept Ltd (https://encept.co)
@@ -62,49 +59,21 @@ class MainActivity : AppCompatActivity() {
         )
 
         binding.apply {
-            btnStartAudioStream.setOnClickListener {
-                if (wsSendClient != null) {
-                    wsSendClient?.connect()
-                    checkRequestAudioPermissions()
-                }
-            }
-
-            btnStopAudioStream.setOnClickListener {
-                stopAudioStreaming()
-            }
-
-            btnStartReceivedAudio.setOnClickListener {
-                if (wsReciverClient != null) {
-                    wsReciverClient?.connect()
-                    startReceivedAudio()
-                }
-            }
-
-            btnStopReceivedAudio.setOnClickListener {
-                if (wsReciverClient != null) {
-                    wsReciverClient?.disconnect()
-                    stopReceivedAudio()
-                }
-            }
-
             btnStartVideoStream.setOnClickListener {
                 if (wsSendClient != null) {
-                    wsSendClient?.connect()
-                    vAStreamer = VideoAudioStreamer(this@MainActivity, wsSendClient!!, pvCamera)
+                    vAStreamer = VideoAudioStreamer(this@MainActivity, wsSendClient!!, pvCameraView)
                     checkAVPermissions()
                 }
             }
 
             btnStopVideoStream.setOnClickListener {
                 if (vAStreamer != null && wsSendClient != null) {
-                    wsSendClient?.disconnect()
                     vAStreamer?.stopAudioVideoStreaming()
                 }
             }
 
             btnStartVideoReceived.setOnClickListener {
                 if (wsReciverClient != null) {
-                    wsReciverClient?.connect()
                     vAPlayer = VideoAudioPlayer(binding.svVideoView, wsReciverClient!!)
                     vAPlayer?.initializeDecoder()
                 }
@@ -112,7 +81,6 @@ class MainActivity : AppCompatActivity() {
 
             btnStopVideoReceived.setOnClickListener {
                 if (wsReciverClient != null && vAPlayer != null) {
-                    wsReciverClient?.disconnect()
                     vAPlayer?.stopReceivedVideo()
                 }
             }
@@ -127,37 +95,6 @@ class MainActivity : AppCompatActivity() {
 
         if (wsReciverClient != null) {
             wsReciverClient?.disconnect()
-        }
-//        VideoPlayer.releaseDecoder()
-    }
-
-    private fun startAudioStreaming() {
-        if (wsSendClient != null) {
-            audioStreamer = AudioStreamer(this, wsSendClient!!)
-            audioStreamer?.startAudioStreaming()
-            Toast.makeText(this, "Audio streaming started!", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun stopAudioStreaming() {
-        if (audioStreamer != null && wsSendClient != null) {
-            audioStreamer?.stopAudioStreaming()
-            wsSendClient?.disconnect()
-        }
-        Toast.makeText(this, "Audio streaming stopped!", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun startReceivedAudio() {
-        if (wsReciverClient != null) {
-            audioStreamer = AudioStreamer(this, wsReciverClient!!)
-            audioStreamer?.startReceivedAudio()
-            Toast.makeText(this, "Audio Play started!", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun stopReceivedAudio() {
-        if (audioStreamer != null) {
-            audioStreamer?.stopAudioReceived()
         }
     }
 
@@ -178,23 +115,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkRequestVideoPermissions() {
-        val requiredPermissions = arrayOf(
-            Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO
-        )
-        if (!requiredPermissions.all {
-                ContextCompat.checkSelfPermission(
-                    this, it
-                ) == PackageManager.PERMISSION_GRANTED
-            }) {
-            ActivityCompat.requestPermissions(this, requiredPermissions, 101)
-        } else {
-            if (vaStreamer != null) {
-                vaStreamer?.startVideoStreaming()
-            }
-        }
-    }
-
     override fun onRequestPermissionsResult(
         requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ) {
@@ -205,49 +125,4 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
-    private fun checkRequestAudioPermissions() {
-        if (ContextCompat.checkSelfPermission(
-                this, Manifest.permission.RECORD_AUDIO
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            startAudioStreaming()
-        } else {
-            requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-        }
-    }
-
-    private val requestPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-                startAudioStreaming()
-            } else {
-                Toast.makeText(this, "Microphone permission denied!", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-    /*    private val requestWritePermissionLauncher =
-            registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-                if (isGranted) {
-    //                startAudioStreaming()
-                } else {
-                    Toast.makeText(this, "Microphone permission denied!", Toast.LENGTH_SHORT).show()
-                }
-            }*/
-
-    /*    fun checkPermission(activity: Activity): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            if (activity.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-                true
-            } else {
-                activity.requestPermissions(
-                    arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 100
-                )
-//                requestWritePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                false
-            }
-        } else {
-            true
-        }
-    }*/
 }

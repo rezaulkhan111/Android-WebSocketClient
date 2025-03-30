@@ -26,7 +26,7 @@ import java.util.concurrent.Executors
 
 class VideoAudioStreamer(
     private val context: Context,
-    private val webSocketClient: ChatWebSocketClient,
+    private val webSocketClient: ChatWebSocketClient?,
     val pvCameraView: PreviewView
 ) {
     private val cameraExecutor = Executors.newSingleThreadExecutor()
@@ -56,6 +56,7 @@ class VideoAudioStreamer(
             return
         }
 
+        webSocketClient?.connect()
         audioRecord = AudioRecord(
             MediaRecorder.AudioSource.MIC,
             sampleRate,
@@ -138,7 +139,7 @@ class VideoAudioStreamer(
                             val videoEncodedData = ByteArray(bufferInfo.size)
                             videoOutputBuffer?.get(videoEncodedData)
 
-                            webSocketClient.sendAudioOrVideoData(UserChat().apply {
+                            webSocketClient?.sendAudioOrVideoData(UserChat().apply {
                                 audioBytes = audioBuffer
                                 videoBytes = videoEncodedData
                             })
@@ -161,7 +162,9 @@ class VideoAudioStreamer(
         isAudioStreaming = false
         isVideoStreaming = false
 
-        if (cameraExecutor != null && cameraProvider != null && encoder != null && audioRecord != null) {
+        if (cameraExecutor != null && cameraProvider != null && encoder != null && audioRecord != null && webSocketClient!=null) {
+            webSocketClient.disconnect()
+
             cameraExecutor.shutdown()
             cameraProvider?.unbindAll()
             encoder?.stop()
