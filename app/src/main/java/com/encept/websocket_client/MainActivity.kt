@@ -1,6 +1,7 @@
 package com.encept.websocket_client
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
@@ -83,6 +84,10 @@ class MainActivity : AppCompatActivity() {
                 if (wsReciverClient != null && vAPlayer != null) {
                     vAPlayer?.stopReceivedVideo()
                 }
+            }
+
+            btnWebRTC.setOnClickListener {
+                startActivity(Intent(this@MainActivity, WebRtcActivity::class.java))
             }
         }
     }

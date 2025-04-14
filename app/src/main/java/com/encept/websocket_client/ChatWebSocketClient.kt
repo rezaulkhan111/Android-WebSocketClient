@@ -8,6 +8,9 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import org.json.JSONObject
+import org.webrtc.IceCandidate
+import org.webrtc.SessionDescription
 
 /*
 Created By Encept Ltd (https://encept.co)
@@ -16,7 +19,8 @@ Created By Encept Ltd (https://encept.co)
 open class ChatWebSocketClient(
     private var wsServerUrl: String,
     private var headersMap: HashMap<String, String>,
-    private var okHttpClient: OkHttpClient
+    private var okHttpClient: OkHttpClient,
+    private val listener: SignalingListener? = null
 ) {
 
     private var webSocket: WebSocket? = null
@@ -40,8 +44,25 @@ open class ChatWebSocketClient(
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-//                Log.e("WebSocket", "onMessage " + text)
-                messageListener?.invoke(text)
+                Log.e("WebSocket", "onMessage " + text)
+//                messageListener?.invoke(text)
+                val json = JSONObject(text)
+                when (json.getString("type")) {
+                    "offer" -> {
+                        val sdp = SessionDescription(
+                            SessionDescription.Type.fromCanonicalForm(json.getString("messageType").lowercase()),
+                            json.getString("sdp")
+                        )
+                        listener?.onRemoteSessionReceived(sdp)
+                    }
+                    "candidate" -> listener?.onIceCandidateReceived(
+                        IceCandidate(
+                            json.getString("sdpMid"),
+                            json.getInt("sdpMLineIndex"),
+                            json.getString("candidate")
+                        )
+                    )
+                }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
@@ -93,5 +114,52 @@ open class ChatWebSocketClient(
         webSocket = null
         isConnected = false
     }
+
+    fun sendOffer(mSdp: String) {
+        val userData = Gson().toJson(UserChat().apply {
+            receiverId = "9a764f4e-4c7f-4fd5-acef-1915ae18e325"
+            isSaveMessage = false
+            messageText = "No"
+            messageType = SDPType.SDP_OFFER.name
+            sdp = mSdp
+        })
+        webSocket?.send(userData)
+    }
+
+    fun sendAnswer(mSdp: String) {
+        val userData = Gson().toJson(UserChat().apply {
+            receiverId = "9a764f4e-4c7f-4fd5-acef-1915ae18e325"
+            isSaveMessage = false
+            messageText = "No"
+            messageType = SDPType.SDP_ANSWER.name
+            sdp = mSdp
+        })
+        webSocket?.send(userData)
+    }
+
+    fun sendSessionDescription(sdp: SessionDescription) {
+        val json = JSONObject().apply {
+            put("messageType", sdp.type.canonicalForm())
+            put("sdp", sdp.description)
+        }
+        webSocket?.send(json.toString())
+    }
+
+    fun sendIceCandidate(candidate: IceCandidate) {
+        val userData = Gson().toJson(UserChat().apply {
+            receiverId = "9a764f4e-4c7f-4fd5-acef-1915ae18e325"
+            isSaveMessage = false
+            messageText = "No"
+            messageType = SDPType.ICE_CANDIDATE.name
+            iceCandidate = candidate.sdp
+        })
+        webSocket?.send(userData)
+
+        Log.e("WRA", "sendIceCandidate: " + userData)
+    }
 }
 
+interface SignalingListener {
+    fun onRemoteSessionReceived(sdp: SessionDescription)
+    fun onIceCandidateReceived(candidate: IceCandidate)
+}
