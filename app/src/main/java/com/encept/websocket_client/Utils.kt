@@ -67,4 +67,8 @@ object Utils {
             Log.e("file", "Error writing file: ${e.message}")
         }
     }
+
+    const val CALL_TYPE_KEY = "call Type"
+    const val CALL_TYPE_SEND_KEY = "call Type send"
+    const val CALL_TYPE_RECIVED_KEY = "call Type recive"
 }
