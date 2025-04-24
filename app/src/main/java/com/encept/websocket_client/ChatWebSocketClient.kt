@@ -50,11 +50,13 @@ open class ChatWebSocketClient(
                 when (json.getString("type")) {
                     "offer" -> {
                         val sdp = SessionDescription(
-                            SessionDescription.Type.fromCanonicalForm(json.getString("messageType").lowercase()),
-                            json.getString("sdp")
+                            SessionDescription.Type.fromCanonicalForm(
+                                json.getString("messageType").lowercase()
+                            ), json.getString("sdp")
                         )
                         listener?.onRemoteSessionReceived(sdp)
                     }
+
                     "candidate" -> listener?.onIceCandidateReceived(
                         IceCandidate(
                             json.getString("sdpMid"),
@@ -115,13 +117,25 @@ open class ChatWebSocketClient(
         isConnected = false
     }
 
-    fun sendOffer(mSdp: String) {
+    fun sendSessionDescription(sdpDes: SessionDescription) {
+        val userData = Gson().toJson(UserChat().apply {
+            receiverId = "9a764f4e-4c7f-4fd5-acef-1915ae18e325"
+            isSaveMessage = false
+            messageText = "No"
+            messageType = sdpDes.type.canonicalForm()
+            sdp = sdpDes.description
+        })
+        Log.e("WebSocket", "sendSessionDescription: " + userData)
+        webSocket?.send(userData)
+    }
+
+    fun sendOffer(sdpDes: SessionDescription) {
         val userData = Gson().toJson(UserChat().apply {
             receiverId = "9a764f4e-4c7f-4fd5-acef-1915ae18e325"
             isSaveMessage = false
             messageText = "No"
             messageType = SDPType.SDP_OFFER.name
-            sdp = mSdp
+            sdp = sdpDes.description
         })
         webSocket?.send(userData)
     }
@@ -135,14 +149,6 @@ open class ChatWebSocketClient(
             sdp = mSdp
         })
         webSocket?.send(userData)
-    }
-
-    fun sendSessionDescription(sdp: SessionDescription) {
-        val json = JSONObject().apply {
-            put("messageType", sdp.type.canonicalForm())
-            put("sdp", sdp.description)
-        }
-        webSocket?.send(json.toString())
     }
 
     fun sendIceCandidate(candidate: IceCandidate) {

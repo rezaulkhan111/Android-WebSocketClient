@@ -7,18 +7,33 @@
     android:layout_height="match_parent"
     tools:context=".WebRtcActivity">
 
-    <org.webrtc.SurfaceViewRenderer
-        android:id="@+id/remoteView"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/clViewSection"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toTopOf="@+id/btnCallOffer"
+        app:layout_constraintTop_toTopOf="parent">
 
-    <org.webrtc.SurfaceViewRenderer
-        android:id="@+id/localView"
-        android:layout_width="100dp"
-        android:layout_height="150dp"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentBottom="true"
-        android:layout_margin="8dp"
+        <org.webrtc.SurfaceViewRenderer
+            android:id="@+id/remoteView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <org.webrtc.SurfaceViewRenderer
+            android:id="@+id/localView"
+            android:layout_width="100dp"
+            android:layout_height="150dp"
+            android:layout_margin="8dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <Button
+        android:id="@+id/btnCallOffer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/clViewSection" />
 </androidx.constraintlayout.widget.ConstraintLayout>

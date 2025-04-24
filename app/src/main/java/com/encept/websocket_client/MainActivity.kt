@@ -86,8 +86,18 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            btnWebRTC.setOnClickListener {
-                startActivity(Intent(this@MainActivity, WebRtcActivity::class.java))
+            btnWebRTCSend.setOnClickListener {
+                startActivity(Intent(this@MainActivity, WebRtcActivity::class.java).apply {
+                    putExtra(Utils.CALL_TYPE_KEY, "SEND")
+                    putExtra(Utils.CALL_TYPE_SEND_KEY, mSenderToket)
+                })
+            }
+
+            btnWebRTCSend.setOnClickListener {
+                startActivity(Intent(this@MainActivity, WebRtcActivity::class.java).apply {
+                    putExtra(Utils.CALL_TYPE_KEY, "RECIVED")
+                    putExtra(Utils.CALL_TYPE_RECIVED_KEY, mReciverToket)
+                })
             }
         }
     }

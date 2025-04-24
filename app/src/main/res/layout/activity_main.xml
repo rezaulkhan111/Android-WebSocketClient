@@ -66,10 +66,17 @@
             android:textAllCaps="false" />
 
         <Button
-            android:id="@+id/btnWebRTC"
+            android:id="@+id/btnWebRTCSend"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="WebRTC"
+            android:text="WebRTCSend"
+            android:textAllCaps="false" />
+
+        <Button
+            android:id="@+id/btnWebRTCRecived"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="WebRTCRecived"
             android:textAllCaps="false" />
     </LinearLayout>
 </LinearLayout>

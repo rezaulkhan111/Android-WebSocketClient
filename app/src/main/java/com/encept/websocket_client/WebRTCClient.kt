@@ -26,7 +26,7 @@ class WebRTCClient(
     private val context: Context,
     private val localView: SurfaceViewRenderer,
     private val remoteView: SurfaceViewRenderer,
-    private val signalingClient: ChatWebSocketClient
+    private val wsChatSocket: ChatWebSocketClient
 ) {
     private lateinit var peerConnection: PeerConnection
     private lateinit var localVideoTrack: VideoTrack
@@ -78,19 +78,11 @@ class WebRTCClient(
     }
 
     private fun createPeerConnection() {
-//        val iceServers = listOf(
-//            PeerConnection.IceServer.builder("stun:192.168.0.110:3478").createIceServer(),
-//            PeerConnection.IceServer.builder("turn:192.168.0.110:3479")
-//                .setUsername("testuser")
-//                .setPassword("testpass")
-//                .createIceServer()
-//        )
-
         val iceServers = listOf(
-            PeerConnection.IceServer.builder("stun:stun.ourcodeworld.com:5349").createIceServer(),
-            PeerConnection.IceServer.builder("turn:turn.ourcodeworld.com:5349")
-                .setUsername("brucewayne")
-                .setPassword("123456")
+            PeerConnection.IceServer.builder("stun:172.19.141.81:3478").createIceServer(),
+            PeerConnection.IceServer.builder("turn:172.19.141.81:3478")
+                .setUsername("testuser")
+                .setPassword("testpass")
                 .createIceServer()
         )
 
@@ -116,7 +108,7 @@ class WebRTCClient(
                 }
 
                 override fun onIceCandidate(candidate: IceCandidate) {
-                    signalingClient.sendIceCandidate(candidate)
+                    wsChatSocket.sendIceCandidate(candidate)
                     Log.e("WRTCC", "onIceCandidate" + Gson().toJson(candidate))
                 }
 
@@ -177,7 +169,7 @@ class WebRTCClient(
         peerConnection.createOffer(object : SdpObserver {
             override fun onCreateSuccess(sessionDescription: SessionDescription) {
                 peerConnection.setLocalDescription(this, sessionDescription)
-                signalingClient.sendSessionDescription(sessionDescription)
+                wsChatSocket.sendOffer(sessionDescription)
             }
 
             override fun onSetSuccess() {
@@ -195,14 +187,48 @@ class WebRTCClient(
         peerConnection.setRemoteDescription(object : SdpObserver {
             override fun onSetSuccess() {
                 Log.d("WebRTC", "Remote SDP set successfully")
+
+                // Now create the answer
+                peerConnection.createAnswer(object : SdpObserver {
+                    override fun onCreateSuccess(desc: SessionDescription?) {
+                        Log.d("WebRTC", "Answer created: $desc")
+                        // Set local description
+                        peerConnection.setLocalDescription(object : SdpObserver {
+                            override fun onSetSuccess() {
+                                Log.d("WebRTC", "Local description set successfully (answer)")
+                                // Send this answer to remote peer via WebSocket
+                                wsChatSocket.sendAnswer(desc?.description!!)
+                            }
+
+                            override fun onSetFailure(error: String?) {
+                                Log.e("WebRTC", "Failed to set local description (answer): $error")
+                            }
+
+                            override fun onCreateSuccess(p0: SessionDescription?) {}
+                            override fun onCreateFailure(p0: String?) {}
+                        }, desc)
+                    }
+
+                    override fun onCreateFailure(error: String?) {
+                        Log.e("WebRTC", "Failed to create answer: $error")
+                    }
+
+                    override fun onSetSuccess() {}
+                    override fun onSetFailure(p0: String?) {}
+                }, MediaConstraints()) // optional constraints
             }
 
             override fun onSetFailure(p0: String?) {
                 Log.e("WebRTC", "Failed to set remote SDP: $p0")
             }
 
-            override fun onCreateSuccess(p0: SessionDescription?) {}
-            override fun onCreateFailure(p0: String?) {}
+            override fun onCreateSuccess(p0: SessionDescription?) {
+                Log.e("WebRTC", "onCreateSuccess: $p0")
+            }
+
+            override fun onCreateFailure(p0: String?) {
+                Log.e("WebRTC", "onCreateFailure: $p0")
+            }
         }, sessionDescription)
     }
 
