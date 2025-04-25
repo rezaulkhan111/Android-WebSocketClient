@@ -1,6 +1,7 @@
 package com.encept.websocket_client
 
 import android.content.Context
+import android.media.AudioManager
 import android.util.Log
 import com.google.gson.Gson
 import org.webrtc.AudioTrack
@@ -23,7 +24,7 @@ import org.webrtc.VideoCapturer
 import org.webrtc.VideoTrack
 
 class WebRTCClient(
-    private val context: Context,
+    private val contextRtc: Context,
     private val localView: SurfaceViewRenderer,
     private val remoteView: SurfaceViewRenderer,
     private val wsChatSocket: ChatWebSocketClient,
@@ -35,10 +36,12 @@ class WebRTCClient(
     private lateinit var localAudioTrack: AudioTrack
     private lateinit var videoCapturer: VideoCapturer
 
+    private var remoteAudioTrack: AudioTrack? = null
+
     private val eglBase = EglBase.create()
 
     private val peerConnectionFactory: PeerConnectionFactory by lazy {
-        val options = PeerConnectionFactory.InitializationOptions.builder(context)
+        val options = PeerConnectionFactory.InitializationOptions.builder(contextRtc)
             .setEnableInternalTracer(true).setFieldTrials("WebRTC-IntelVP8/Enabled/")
             .createInitializationOptions()
 
@@ -55,6 +58,10 @@ class WebRTCClient(
         initLocalStream()
         createPeerConnection()
         Log.e("WebRTC", "Remote track added to remoteView")
+
+        val audioManager = contextRtc.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        audioManager.isSpeakerphoneOn = true
     }
 
     fun release() {
@@ -90,7 +97,7 @@ class WebRTCClient(
         videoCapturer.initialize(
             SurfaceTextureHelper.create(
                 "CaptureThread", eglBase.eglBaseContext
-            ), context, videoSource.capturerObserver
+            ), contextRtc, videoSource.capturerObserver
         )
 
         localVideoTrack = peerConnectionFactory.createVideoTrack("LOCAL_VIDEO_TRACK", videoSource)
@@ -102,16 +109,16 @@ class WebRTCClient(
     }
 
     private fun createPeerConnection() {
-//        val iceServers = listOf(
-//            PeerConnection.IceServer.builder("stun:172.19.141.81:3478").createIceServer(),
-//            PeerConnection.IceServer.builder("turn:172.19.141.81:3478").setUsername("testuser")
-//                .setPassword("testpass").createIceServer()
-//        )
         val iceServers = listOf(
-            PeerConnection.IceServer.builder("stun:stun.ourcodeworld.com:5349").createIceServer(),
-            PeerConnection.IceServer.builder("turn:turn.ourcodeworld.com:5349")
-                .setUsername("brucewayne").setPassword("12345").createIceServer()
+            PeerConnection.IceServer.builder("stun:172.19.141.81:3478").createIceServer(),
+            PeerConnection.IceServer.builder("turn:172.19.141.81:3478").setUsername("testuser")
+                .setPassword("testpass").createIceServer()
         )
+//        val iceServers = listOf(
+//            PeerConnection.IceServer.builder("stun:stun.ourcodeworld.com:5349").createIceServer(),
+//            PeerConnection.IceServer.builder("turn:turn.ourcodeworld.com:5349")
+//                .setUsername("brucewayne").setPassword("12345").createIceServer()
+//        )
 
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
         rtcConfig.sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
@@ -155,22 +162,22 @@ class WebRTCClient(
 
                 override fun onTrack(transceiver: RtpTransceiver?) {
                     val trackRece = transceiver?.receiver
-//                    val trackRece = transceiver?.receiver?.track() as? VideoTrack
                     if (trackRece != null) {
-                        val mTrackVideo = trackRece.track() as? VideoTrack
-                        if (mTrackVideo is VideoTrack) {
-                            mTrackVideo.addSink(remoteView)
+                        val mTrackType = trackRece.track()
+
+                        if (mTrackType is VideoTrack) {
+                            mTrackType.addSink(remoteView)
+                        } else if (mTrackType is AudioTrack) {
+                            remoteAudioTrack = mTrackType
+                            remoteAudioTrack?.setEnabled(true)
                         }
-                        Log.e("WebRTC", "Track video: ${mTrackVideo?.kind()}")
                     }
-                    Log.e("WebRTC", "Track received: " + Gson().toJson(transceiver))
                 }
             })!!
 
         val mediaStream = peerConnectionFactory.createLocalMediaStream("LOCAL_STREAM")
         mediaStream.addTrack(localVideoTrack)
         mediaStream.addTrack(localAudioTrack)
-//        peerConnection.addStream(mediaStream)
 
         peerConnection.addTrack(localVideoTrack, listOf("ARDAMS"))
         peerConnection.addTrack(localAudioTrack, listOf("ARDAMS"))
@@ -183,7 +190,7 @@ class WebRTCClient(
     }
 
     private fun createCameraCapturer(): VideoCapturer {
-        val enumerator = Camera2Enumerator(context)
+        val enumerator = Camera2Enumerator(contextRtc)
         for (deviceName in enumerator.deviceNames) {
             if (enumerator.isFrontFacing(deviceName)) {
                 return enumerator.createCapturer(deviceName, null)
