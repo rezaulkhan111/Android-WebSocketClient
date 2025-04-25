@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -26,6 +28,8 @@ class MainActivity : AppCompatActivity() {
 
 
     private var vAStreamer: VideoAudioStreamer? = null
+
+    private var isPermisionGrand: Boolean = false
 
     //    private var videoStreamer: VideoStreamer? = null
 //    private var audioReceiver: AudioReceiver? = null
@@ -87,17 +91,27 @@ class MainActivity : AppCompatActivity() {
             }
 
             btnWebRTCSend.setOnClickListener {
-                startActivity(Intent(this@MainActivity, WebRtcActivity::class.java).apply {
-                    putExtra(Utils.CALL_TYPE_KEY, "SEND")
-                    putExtra(Utils.CALL_TYPE_SEND_KEY, mSenderToket)
-                })
+                if (isPermisionGrand) {
+                    startActivity(Intent(this@MainActivity, WebRtcActivity::class.java).apply {
+                        putExtra(Utils.CALL_TYPE_KEY, "SEND")
+                        putExtra(Utils.CALL_RECIVER_KEY, "9a764f4e-4c7f-4fd5-acef-1915ae18e325")
+                        putExtra(Utils.CALL_TYPE_SEND_KEY, mSenderToket)
+                    })
+                } else {
+                    askForCameraPermission()
+                }
             }
 
-            btnWebRTCSend.setOnClickListener {
-                startActivity(Intent(this@MainActivity, WebRtcActivity::class.java).apply {
-                    putExtra(Utils.CALL_TYPE_KEY, "RECIVED")
-                    putExtra(Utils.CALL_TYPE_RECIVED_KEY, mReciverToket)
-                })
+            btnWebRTCRecived.setOnClickListener {
+                if (isPermisionGrand) {
+                    startActivity(Intent(this@MainActivity, WebRtcActivity::class.java).apply {
+                        putExtra(Utils.CALL_TYPE_KEY, "RECIVED")
+                        putExtra(Utils.CALL_RECIVER_KEY, "da5f5e28-6959-4605-b5b1-a4eae25bfd61")
+                        putExtra(Utils.CALL_TYPE_RECIVED_KEY, mReciverToket)
+                    })
+                } else {
+                    askForCameraPermission()
+                }
             }
         }
     }
@@ -137,6 +151,36 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == 101 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             if (vaStreamer != null) {
                 vaStreamer?.startVideoStreaming()
+            }
+        }
+    }
+
+    private val requestCameraPerLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                isPermisionGrand = true
+            } else {
+                isPermisionGrand = false
+                Toast.makeText(this, "Permission Denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+    private fun askForCameraPermission() {
+        when {
+            ContextCompat.checkSelfPermission(
+                this, Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED -> {
+                isPermisionGrand = true
+            }
+
+            ActivityCompat.shouldShowRequestPermissionRationale(
+                this, Manifest.permission.CAMERA
+            ) -> {
+                requestCameraPerLauncher.launch(Manifest.permission.CAMERA)
+            }
+
+            else -> {
+                requestCameraPerLauncher.launch(Manifest.permission.CAMERA)
             }
         }
     }

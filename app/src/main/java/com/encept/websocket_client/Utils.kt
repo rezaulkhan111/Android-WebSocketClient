@@ -68,6 +68,7 @@ object Utils {
         }
     }
 
+    const val CALL_RECIVER_KEY = "call reciver"
     const val CALL_TYPE_KEY = "call Type"
     const val CALL_TYPE_SEND_KEY = "call Type send"
     const val CALL_TYPE_RECIVED_KEY = "call Type recive"
