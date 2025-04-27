@@ -7,16 +7,16 @@ Project Here: [Ktor WebSocket Server Side](https://github.com/kimoandroid/Ktor-W
 
 <p align="center">
   <a style="text-decoration:none" area-label="app start">
-<img src="https://user-images.githubusercontent.com/69405523/223534615-48e0b877-da78-4f7a-874b-6b223c841fb8.jpg" width=320/>
+<img src="https://user-images.githubusercontent.com/69405523/223534615-48e0b877-da78-4f7a-874b-6b223c841fb8.jpg" width=100 height="200"/>
   </a>
   <a style="text-decoration:none" area-label="app start">
-<img src="https://raw.githubusercontent.com/rezaulkhan111/Android-WebSocketClient/refs/heads/master/appUi/home.jpg" width=320/>
+<img src="https://raw.githubusercontent.com/rezaulkhan111/Android-WebSocketClient/refs/heads/master/appUi/home.jpg" width=100 height="200"/>
   </a>
   <a style="text-decoration:none" area-label="app start">
-<img src="https://raw.githubusercontent.com/rezaulkhan111/Android-WebSocketClient/refs/heads/master/appUi/webRtcCall.jpg" width=320/>
+<img src="https://raw.githubusercontent.com/rezaulkhan111/Android-WebSocketClient/refs/heads/master/appUi/webRtcCall.jpg" width=100 height="200"/>
   </a>
   <a style="text-decoration:none" area-label="app start">
-<img src="https://raw.githubusercontent.com/rezaulkhan111/Android-WebSocketClient/refs/heads/master/appUi/webRtcCalling.jpg" width=320/>
+<img src="https://raw.githubusercontent.com/rezaulkhan111/Android-WebSocketClient/refs/heads/master/appUi/webRtcCalling.jpg" width=100 height="200"/>
   </a>
 </p>
 
