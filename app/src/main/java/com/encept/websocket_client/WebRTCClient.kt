@@ -1,6 +1,7 @@
 package com.encept.websocket_client
 
 import android.content.Context
+import android.media.AudioManager
 import android.util.Log
 import com.google.gson.Gson
 import org.webrtc.AudioTrack
@@ -21,26 +22,35 @@ import org.webrtc.SurfaceTextureHelper
 import org.webrtc.SurfaceViewRenderer
 import org.webrtc.VideoCapturer
 import org.webrtc.VideoTrack
+import org.webrtc.audio.JavaAudioDeviceModule
 
 class WebRTCClient(
-    private val context: Context,
+    private val contextRtc: Context,
     private val localView: SurfaceViewRenderer,
     private val remoteView: SurfaceViewRenderer,
-    private val wsChatSocket: ChatWebSocketClient
+    private val wsChatSocket: ChatWebSocketClient,
+    private val mReciverId: String,
+    private val mRtcCallback: RTCCallBack
 ) {
     private lateinit var peerConnection: PeerConnection
     private lateinit var localVideoTrack: VideoTrack
     private lateinit var localAudioTrack: AudioTrack
     private lateinit var videoCapturer: VideoCapturer
+    private var remoteAudioTrack: AudioTrack? = null
 
     private val eglBase = EglBase.create()
 
     private val peerConnectionFactory: PeerConnectionFactory by lazy {
-        val options = PeerConnectionFactory.InitializationOptions.builder(context)
+        val options = PeerConnectionFactory.InitializationOptions.builder(contextRtc)
             .setEnableInternalTracer(true).setFieldTrials("WebRTC-IntelVP8/Enabled/")
             .createInitializationOptions()
 
         PeerConnectionFactory.initialize(options)
+
+        val audioDeviceModule = JavaAudioDeviceModule.builder(contextRtc)
+            .setUseHardwareAcousticEchoCanceler(true)
+            .setUseHardwareNoiseSuppressor(true)
+            .createAudioDeviceModule()
 
         PeerConnectionFactory.builder()
             .setVideoDecoderFactory(DefaultVideoDecoderFactory(eglBase.eglBaseContext))
@@ -52,12 +62,37 @@ class WebRTCClient(
         initViews()
         initLocalStream()
         createPeerConnection()
+
+        val audioManager = contextRtc.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        audioManager.isSpeakerphoneOn = true
+    }
+
+    fun release() {
+        try {
+            videoCapturer.stopCapture()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        videoCapturer.dispose()
+        localView.release()
+        remoteView.release()
+        eglBase.release()
+        peerConnection.dispose()
+        peerConnectionFactory.dispose()
     }
 
     private fun initViews() {
         localView.init(eglBase.eglBaseContext, null)
         localView.setZOrderMediaOverlay(true)
+        localView.setMirror(true)
+        localView.setEnableHardwareScaler(true)
+
         remoteView.init(eglBase.eglBaseContext, null)
+        remoteView.setZOrderMediaOverlay(true)
+        remoteView.setMirror(true)
+        remoteView.setEnableHardwareScaler(true)
     }
 
     private fun initLocalStream() {
@@ -65,16 +100,21 @@ class WebRTCClient(
         videoCapturer = createCameraCapturer()
         videoCapturer.initialize(
             SurfaceTextureHelper.create(
-                "CaptureThread", eglBase.eglBaseContext
-            ), context, videoSource.capturerObserver
+                "CaptureThread",
+                eglBase.eglBaseContext
+            ), contextRtc,
+            videoSource.capturerObserver
         )
 
         localVideoTrack = peerConnectionFactory.createVideoTrack("LOCAL_VIDEO_TRACK", videoSource)
         localVideoTrack.addSink(localView)
+
         videoCapturer.startCapture(640, 480, 30)
 
         val audioSource = peerConnectionFactory.createAudioSource(MediaConstraints())
         localAudioTrack = peerConnectionFactory.createAudioTrack("LOCAL_AUDIO_TRACK", audioSource)
+
+        localAudioTrack.setEnabled(true)
     }
 
     private fun createPeerConnection() {
@@ -90,70 +130,70 @@ class WebRTCClient(
         peerConnection =
             peerConnectionFactory.createPeerConnection(rtcConfig, object : PeerConnection.Observer {
                 override fun onSignalingChange(p0: PeerConnection.SignalingState?) {
-                    Log.e("WRTCC", "onSignalingChange" + Gson().toJson(p0))
                 }
 
-                override fun onIceConnectionChange(p0: PeerConnection.IceConnectionState?) {
-                    Log.e("WRTCC", "onIceConnectionChange" + Gson().toJson(p0))
+                override fun onIceConnectionChange(connState: PeerConnection.IceConnectionState?) {
+                    mRtcCallback.onIceState(connState!!)
                 }
 
                 override fun onIceConnectionReceivingChange(p0: Boolean) {
-                    Log.e("WRTCC", "onIceConnectionReceivingChange" + Gson().toJson(p0))
                 }
 
                 override fun onIceGatheringChange(p0: PeerConnection.IceGatheringState?) {
-                    Log.e("WRTCC", "onIceGatheringChange" + Gson().toJson(p0))
                 }
 
                 override fun onIceCandidate(candidate: IceCandidate) {
-                    wsChatSocket.sendIceCandidate(candidate)
-                    Log.e("WRTCC", "onIceCandidate" + Gson().toJson(candidate))
+                    wsChatSocket.sendIceCandidate(candidate, mReciverId)
                 }
 
                 override fun onIceCandidatesRemoved(p0: Array<out IceCandidate>?) {
-                    Log.e("WRTCC", "onIceCandidatesRemoved" + Gson().toJson(p0))
                 }
 
                 override fun onAddStream(stream: MediaStream) {
-                    stream.videoTracks.firstOrNull()?.addSink(remoteView)
                 }
 
                 override fun onRemoveStream(p0: MediaStream?) {
-                    Log.e("WRTCC", "onRemoveStream" + Gson().toJson(p0))
                 }
 
                 override fun onDataChannel(p0: DataChannel?) {
-                    Log.e("WRTCC", "onDataChannel" + Gson().toJson(p0))
                 }
 
                 override fun onRenegotiationNeeded() {
-                    Log.e("WRTCC", "onRenegotiationNeeded")
+                    Log.e("WebRTC", "Renegotiation needed")
                 }
 
                 override fun onTrack(transceiver: RtpTransceiver?) {
-                    val track = transceiver?.receiver?.track() as? VideoTrack
-                    if (track is VideoTrack) {
-                        track.addSink(remoteView)
+                    val trackRece = transceiver?.receiver
+                    if (trackRece != null) {
+                        val mTrackType = trackRece.track()
+
+                        if (mTrackType is VideoTrack) {
+                            mTrackType.addSink(remoteView)
+                        } else if (mTrackType is AudioTrack) {
+                            remoteAudioTrack = mTrackType
+
+                            remoteAudioTrack?.setEnabled(true)
+                        }
                     }
                 }
             })!!
 
-        val stream = peerConnectionFactory.createLocalMediaStream("LOCAL_STREAM")
-        stream.addTrack(localVideoTrack)
-        stream.addTrack(localAudioTrack)
+//        val mediaStream = peerConnectionFactory.createLocalMediaStream("LOCAL_STREAM")
+//        mediaStream.addTrack(localVideoTrack)
+//        mediaStream.addTrack(localAudioTrack)
 
-        peerConnection.addTrack(localVideoTrack)
-        peerConnection.addTrack(localAudioTrack)
+        peerConnection.addTrack(localVideoTrack, listOf("ARDAMS"))
+        peerConnection.addTrack(localAudioTrack, listOf("ARDAMS"))
 
-        peerConnection.getStats { report ->
-            for (stat in report.statsMap.values) {
-                Log.d("WebRTC-Stats", stat.toString())
-            }
-        }
+//        peerConnection.getStats { report ->
+//            for (stat in report.statsMap.values) {
+//                Log.e("WebRTC-Stats", stat.toString())
+//            }
+//        }
     }
 
     private fun createCameraCapturer(): VideoCapturer {
-        val enumerator = Camera2Enumerator(context)
+        val enumerator = Camera2Enumerator(contextRtc)
         for (deviceName in enumerator.deviceNames) {
             if (enumerator.isFrontFacing(deviceName)) {
                 return enumerator.createCapturer(deviceName, null)
@@ -167,13 +207,15 @@ class WebRTCClient(
         peerConnection.createOffer(object : SdpObserver {
             override fun onCreateSuccess(sessionDescription: SessionDescription) {
                 peerConnection.setLocalDescription(this, sessionDescription)
+
                 wsChatSocket.sendOffer(sessionDescription)
             }
 
             override fun onSetSuccess() {
             }
 
-            override fun onCreateFailure(p0: String?) {
+            override fun onCreateFailure(error: String?) {
+                Log.e("WebRTC", "CreateOffer failed: $error")
             }
 
             override fun onSetFailure(p0: String?) {
@@ -181,30 +223,27 @@ class WebRTCClient(
         }, constraints)
     }
 
-    fun onRemoteSessionReceived(sessionDescription: SessionDescription) {
+    private val pendingIceCandidates = mutableListOf<IceCandidate>()
+    private var remoteSdpSet = false
+
+    fun setRemoteDescription(sessionDescription: SessionDescription) {
+        Log.e("WebRTC", "setRemoteDescription" + Gson().toJson(sessionDescription))
         peerConnection.setRemoteDescription(object : SdpObserver {
             override fun onSetSuccess() {
-                Log.d("WebRTC", "Remote SDP set successfully")
+                Log.e("WebRTC", "Remote SDP set successfully")
 
-                // Now create the answer
+                remoteSdpSet = true
+                for (candidate in pendingIceCandidates) {
+                    peerConnection.addIceCandidate(candidate)
+                }
+                pendingIceCandidates.clear()
+
                 peerConnection.createAnswer(object : SdpObserver {
-                    override fun onCreateSuccess(desc: SessionDescription?) {
-                        Log.d("WebRTC", "Answer created: $desc")
-                        // Set local description
-                        peerConnection.setLocalDescription(object : SdpObserver {
-                            override fun onSetSuccess() {
-                                Log.d("WebRTC", "Local description set successfully (answer)")
-                                // Send this answer to remote peer via WebSocket
-                                wsChatSocket.sendAnswer(desc?.description!!)
-                            }
+                    override fun onCreateSuccess(desc: SessionDescription) {
+                        Log.e("WebRTC", "Answer created: " + Gson().toJson(desc))
 
-                            override fun onSetFailure(error: String?) {
-                                Log.e("WebRTC", "Failed to set local description (answer): $error")
-                            }
-
-                            override fun onCreateSuccess(p0: SessionDescription?) {}
-                            override fun onCreateFailure(p0: String?) {}
-                        }, desc)
+                        peerConnection.setLocalDescription(this, desc)
+                        wsChatSocket.sendAnswer(desc)
                     }
 
                     override fun onCreateFailure(error: String?) {
@@ -213,7 +252,7 @@ class WebRTCClient(
 
                     override fun onSetSuccess() {}
                     override fun onSetFailure(p0: String?) {}
-                }, MediaConstraints()) // optional constraints
+                }, MediaConstraints())
             }
 
             override fun onSetFailure(p0: String?) {
@@ -231,6 +270,14 @@ class WebRTCClient(
     }
 
     fun addIceCandidate(candidate: IceCandidate) {
-        peerConnection.addIceCandidate(candidate)
+        if (remoteSdpSet) {
+            peerConnection.addIceCandidate(candidate)
+        } else {
+            pendingIceCandidates.add(candidate)
+        }
     }
+}
+
+interface RTCCallBack {
+    fun onIceState(state: PeerConnection.IceConnectionState)
 }

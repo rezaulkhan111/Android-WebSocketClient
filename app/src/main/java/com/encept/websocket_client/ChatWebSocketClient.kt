@@ -44,26 +44,36 @@ open class ChatWebSocketClient(
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                Log.e("WebSocket", "onMessage " + text)
 //                messageListener?.invoke(text)
-                val json = JSONObject(text)
-                when (json.getString("type")) {
-                    "offer" -> {
+                Log.e("WebRTC", "onMessage" + Gson().toJson(text))
+                val model = Gson().fromJson(text, RootJson::class.java)
+                val mUserData = model.data
+                when (mUserData?.messageType) {
+                    SDPType.SDP_OFFER.name -> {
                         val sdp = SessionDescription(
-                            SessionDescription.Type.fromCanonicalForm(
-                                json.getString("messageType").lowercase()
-                            ), json.getString("sdp")
+                            SessionDescription.Type.OFFER, mUserData.sdpDescription
                         )
-                        listener?.onRemoteSessionReceived(sdp)
+                        listener?.setRemoteDescription(sdp)
                     }
 
-                    "candidate" -> listener?.onIceCandidateReceived(
-                        IceCandidate(
-                            json.getString("sdpMid"),
-                            json.getInt("sdpMLineIndex"),
-                            json.getString("candidate")
+                    SDPType.SDP_ANSWER.name -> {
+                        val sdp = SessionDescription(
+                            SessionDescription.Type.ANSWER, mUserData.sdpDescription
                         )
-                    )
+                        listener?.setRemoteDescription(sdp)
+                    }
+
+                    SDPType.ICE_CANDIDATE.name -> {
+                        listener?.onIceCandidateReceived(
+                            IceCandidate(
+                                mUserData.sdpMid, if (mUserData.sdpMLineIndex != null) {
+                                    mUserData.sdpMLineIndex!!
+                                } else {
+                                    0
+                                }, mUserData.sdp
+                            )
+                        )
+                    }
                 }
             }
 
@@ -117,55 +127,46 @@ open class ChatWebSocketClient(
         isConnected = false
     }
 
-    fun sendSessionDescription(sdpDes: SessionDescription) {
-        val userData = Gson().toJson(UserChat().apply {
-            receiverId = "9a764f4e-4c7f-4fd5-acef-1915ae18e325"
-            isSaveMessage = false
-            messageText = "No"
-            messageType = sdpDes.type.canonicalForm()
-            sdp = sdpDes.description
-        })
-        Log.e("WebSocket", "sendSessionDescription: " + userData)
-        webSocket?.send(userData)
-    }
-
     fun sendOffer(sdpDes: SessionDescription) {
         val userData = Gson().toJson(UserChat().apply {
             receiverId = "9a764f4e-4c7f-4fd5-acef-1915ae18e325"
-            isSaveMessage = false
-            messageText = "No"
+
             messageType = SDPType.SDP_OFFER.name
-            sdp = sdpDes.description
+            sdpType = sdpDes.type.canonicalForm()
+            sdpDescription = sdpDes.description.toString()
         })
+//        val s = "jsonStringForPrimaryCompany"
+//        val json: String = userData
+//        Utils.writeStringToTextFile(json, s)
         webSocket?.send(userData)
     }
 
-    fun sendAnswer(mSdp: String) {
+    fun sendAnswer(mSdp: SessionDescription) {
         val userData = Gson().toJson(UserChat().apply {
-            receiverId = "9a764f4e-4c7f-4fd5-acef-1915ae18e325"
-            isSaveMessage = false
-            messageText = "No"
+            receiverId = "da5f5e28-6959-4605-b5b1-a4eae25bfd61"
+
             messageType = SDPType.SDP_ANSWER.name
-            sdp = mSdp
+            sdpType = mSdp.type.canonicalForm()
+            sdpDescription = mSdp.description
         })
         webSocket?.send(userData)
     }
 
-    fun sendIceCandidate(candidate: IceCandidate) {
+    fun sendIceCandidate(candidate: IceCandidate, mReciverId: String) {
         val userData = Gson().toJson(UserChat().apply {
-            receiverId = "9a764f4e-4c7f-4fd5-acef-1915ae18e325"
-            isSaveMessage = false
-            messageText = "No"
+            receiverId = mReciverId
             messageType = SDPType.ICE_CANDIDATE.name
-            iceCandidate = candidate.sdp
+
+            sdp = candidate.sdp
+            sdpMid = candidate.sdpMid
+            sdpMLineIndex = candidate.sdpMLineIndex
+            serverUrl = candidate.serverUrl
         })
         webSocket?.send(userData)
-
-        Log.e("WRA", "sendIceCandidate: " + userData)
     }
 }
 
 interface SignalingListener {
-    fun onRemoteSessionReceived(sdp: SessionDescription)
+    fun setRemoteDescription(sdp: SessionDescription)
     fun onIceCandidateReceived(candidate: IceCandidate)
 }

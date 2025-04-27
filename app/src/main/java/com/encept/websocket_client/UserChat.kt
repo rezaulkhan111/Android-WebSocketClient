@@ -42,9 +42,36 @@ class UserChat {
     @SerializedName("videoBase64String")
     var videoBase64String: String? = null
 
+    @SerializedName("sdpType")
+    var sdpType: String? = null
+
+    @SerializedName("sdpDescription")
+    var sdpDescription: String? = null
+
+    //Ice part
     @SerializedName("sdp")
     var sdp: String? = null
 
-    @SerializedName("iceCandidate")
-    var iceCandidate: String? = null
+    @SerializedName("sdpMid")
+    var sdpMid: String? = null
+
+    @SerializedName("sdpMLineIndex")
+    var sdpMLineIndex: Int? = null
+
+    @SerializedName("serverUrl")
+    var serverUrl: String? = null
+}
+
+class IceCandidate {
+    @SerializedName("sdp")
+    var sdp: String? = null
+
+    @SerializedName("sdpMid")
+    var sdpMid: String? = null
+
+    @SerializedName("sdpMLineIndex")
+    var sdpMLineIndex: Int? = null
+
+    @SerializedName("serverUrl")
+    var serverUrl: String? = null
 }
