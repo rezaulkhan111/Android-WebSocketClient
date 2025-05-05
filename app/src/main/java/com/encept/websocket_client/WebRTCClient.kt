@@ -153,6 +153,7 @@ class WebRTCClient(
                 }
 
                 override fun onRemoveStream(p0: MediaStream?) {
+
                 }
 
                 override fun onDataChannel(p0: DataChannel?) {
